@@ -1,9 +1,11 @@
 import express from "express";
 import "dotenv/config";
+import fileUpload from "express-fileupload";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(fileUpload());
 
 const PORT = process.env.PORT || 8000;
 
