@@ -98,13 +98,85 @@ class NewsController {
     }
 
     static async show(req, res) {
+        const { id } = req.params;
+        try {
+            const news = await prisma.news.findUnique({
+                where: {
+                    id: Number(id)
+                },
+                include: {
+                    user: {
+                        select: {
+                            id: true,
+                            name: true,
+                            profile: true
+                        }
+                    }
+                }
+            });
+            if (!news) {
+                return res.status(404).json({ status: 404, message: "News not found" });
+            }
+            return res.status(200).json({ status: 200, news: NewsApiTransform.transform(news) });
+        } catch (error) {
+            return res.status(500).json({ status: 500, message: "Something went wrong.Please try again" });
+
+        }
 
     }
+
     static async update(req, res) {
+        const { id } = req.params;
+        const user = req.user;
+        const body = req.body;
+        try {
+            const news = await prisma.news.findUnique({
+                where: {
+                    id: Number(id)
+                }
+            });
+            if (!news) {
+                return res.status(404).json({ status: 404, message: "News not found" });
+            }
+            if (news.user_id !== user.id) {
+                return res.status(403).json({ status: 403, message: "You are not allowed to update this news" });
+            }
+            const updatedNews = await prisma.news.update({
+                where: {
+                    id: Number(id)
+                },
+                data: body
+            });
+            return res.status(200).json({ status: 200, message: "News updated successfully", news: updatedNews });
+        } catch (error) {
+            return res.status(500).json({ status: 500, message: "Something went wrong.Please try again" });
+        }
 
     }
     static async destory(req, res) {
-
+        const { id } = req.params;
+        const user = req.user;
+        try {
+            const news = await prisma.news.findUnique({
+                where: {
+                    id: Number(id)
+                }
+            });
+            if (!news) {
+                return res.status(404).json({ status: 404, message: "News not found" });
+            }
+            if (news.user_id !== user.id) {
+                return res.status(403).json({ status: 403, message: "You are not allowed to delete this news" });
+            }
+            await prisma.news.delete({
+                where: {
+                    id: Number(id)
+                }
+            });
+            return res.status(200).json({ status: 200, message: "News deleted successfully" });
+        } catch (error) {
+            return res.status(500).json({ status: 500, message: "Something went wrong.Please try again" });
+        }
     }
 }
 
