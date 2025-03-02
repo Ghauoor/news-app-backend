@@ -1,6 +1,6 @@
 import vine, { errors } from "@vinejs/vine";
 import { newsSchema } from "../validations/newsValidation.js";
-import { generateRandomNumber, imageValidator } from "../utils/helper.js";
+import { generateRandomNumber, imageValidator, removeImage, uploadImage } from "../utils/helper.js";
 import prisma from "../db/db.config.js";
 import NewsApiTransform from "../transform/newsApiTransform.js";
 
@@ -126,56 +126,86 @@ class NewsController {
     }
 
     static async update(req, res) {
-        const { id } = req.params;
-        const user = req.user;
-        const body = req.body;
         try {
+            const { id } = req.params;
+            const user = req.user;
+            const body = req.body;
             const news = await prisma.news.findUnique({
                 where: {
-                    id: Number(id)
-                }
-            });
-            if (!news) {
-                return res.status(404).json({ status: 404, message: "News not found" });
-            }
-            if (news.user_id !== user.id) {
-                return res.status(403).json({ status: 403, message: "You are not allowed to update this news" });
-            }
-            const updatedNews = await prisma.news.update({
-                where: {
-                    id: Number(id)
+                    id: Number(id),
                 },
-                data: body
             });
-            return res.status(200).json({ status: 200, message: "News updated successfully", news: updatedNews });
-        } catch (error) {
-            return res.status(500).json({ status: 500, message: "Something went wrong.Please try again" });
-        }
+            if (user.id !== news.user_id) {
+                return res.status(400).json({ message: "UnAtuhorized" });
+            }
+            const validator = vine.compile(newsSchema);
+            const payload = await validator.validate(body);
+            const image = req?.files?.image;
 
+            if (image) {
+                const message = imageValidator(image?.size, image?.mimetype);
+                if (message !== null) {
+                    return res.status(400).json({
+                        errors: {
+                            image: message,
+                        },
+                    });
+                }
+
+                //   * Upload new image
+                const imageName = uploadImage(image);
+                payload.image = imageName;
+                // * Delete old image
+                removeImage(news.image);
+            }
+
+            await prisma.news.update({
+                data: payload,
+                where: {
+                    id: Number(id),
+                },
+            });
+
+            return res.status(200).json({ message: "News updated successfully!" });
+        } catch (error) {
+            if (error instanceof errors.E_VALIDATION_ERROR) {
+                // console.log(error.messages);
+                return res.status(400).json({ errors: error.messages });
+            } else {
+                return res.status(500).json({
+                    status: 500,
+                    message: "Something went wrong.Please try again.",
+                });
+            }
+        }
     }
-    static async destory(req, res) {
-        const { id } = req.params;
-        const user = req.user;
+
+    static async destroy(req, res) {
         try {
+            const { id } = req.params;
+            const user = req.user;
             const news = await prisma.news.findUnique({
                 where: {
-                    id: Number(id)
-                }
+                    id: Number(id),
+                },
             });
-            if (!news) {
-                return res.status(404).json({ status: 404, message: "News not found" });
+            if (user.id !== news?.user_id) {
+                return res.status(401).json({ message: "UnAuthorized" });
             }
-            if (news.user_id !== user.id) {
-                return res.status(403).json({ status: 403, message: "You are not allowed to delete this news" });
-            }
+
+            // * Delete image from filesystem
+            removeImage(news.image);
             await prisma.news.delete({
                 where: {
-                    id: Number(id)
-                }
+                    id: Number(id),
+                },
             });
-            return res.status(200).json({ status: 200, message: "News deleted successfully" });
+            return res.json({ message: "News deleted successfully!" });
         } catch (error) {
-            return res.status(500).json({ status: 500, message: "Something went wrong.Please try again" });
+            return res.status(500).json({
+                status: 500,
+                message: "Something went wrong.Please try again.",
+            });
         }
     }
 }
