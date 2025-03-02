@@ -16,7 +16,7 @@ export const bytesToMb = (bytes) => {
     return bytes / (1024 * 1024);
 };
 
-export const generateRandomNum = () => {
+export const generateRandomNumber = () => {
     return uuidv4();
 };
 
@@ -34,7 +34,7 @@ export const removeImage = (imageName) => {
 // * Upload image
 export const uploadImage = (image) => {
     const imgExt = image?.name.split(".");
-    const imageName = generateRandomNum() + "." + imgExt[1];
+    const imageName = generateRandomNumber() + "." + imgExt[1];
     const uploadPath = process.cwd() + "/public/images/" + imageName;
     image.mv(uploadPath, (err) => {
         if (err) throw err;
