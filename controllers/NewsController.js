@@ -1,22 +1,21 @@
 import vine, { errors } from "@vinejs/vine";
 import { newsSchema } from "../validations/newsValidation.js";
-import { generateRandomNumber, imageValidator, removeImage, uploadImage } from "../utils/helper.js";
-import prisma from "../db/db.config.js";
+import { imageValidator, removeImage, uploadImage } from "../utils/helper.js";
+import prisma from "../DB/db.config.js";
 import NewsApiTransform from "../transform/newsApiTransform.js";
+// import redisCache from "../DB/redis.config.js";
 
 class NewsController {
     static async index(req, res) {
-        const page = Number(req.query.page || 1);
-        const limit = Number(req.query.limit) || 1;
+        const page = Number(req.query.page) || 1;
+        const limit = Number(req.query.limit) || 10;
 
         if (page <= 0) {
             page = 1;
-
         }
-        if (limit <= 0 || limit >= 100) {
+        if (limit <= 0 || limit > 100) {
             limit = 10;
         }
-
         const skip = (page - 1) * limit;
 
         const news = await prisma.news.findMany({
@@ -28,19 +27,23 @@ class NewsController {
                         id: true,
                         name: true,
                         profile: true,
-                    }
-                }
-            }
+                    },
+                },
+            },
         });
-        const newsTransform = news?.map((item) => NewsApiTransform.transform(item)) // shouldn't be used
+        const newsTransform = news?.map((item) => NewsApiTransform.transform(item));
+
         const totalNews = await prisma.news.count();
-        const total = Math.ceil(totalNews / limit);
-        return res.status(200).json({
-            status: 200, news: newsTransform, metaData: {
-                total,
-                page,
-                limit
-            }
+        const totalPages = Math.ceil(totalNews / limit);
+
+        return res.json({
+            status: 200,
+            news: newsTransform,
+            metadata: {
+                totalPages,
+                currentPage: page,
+                currentLimit: limit,
+            },
         });
     }
 
@@ -50,79 +53,81 @@ class NewsController {
             const body = req.body;
             const validator = vine.compile(newsSchema);
             const payload = await validator.validate(body);
+
             if (!req.files || Object.keys(req.files).length === 0) {
-                return res.status(400).json({ errors: "Image Field is Required" });
+                return res.status(400).json({
+                    errors: {
+                        image: "Image field is required.",
+                    },
+                });
             }
-            const image = req.files.image;
+            const image = req.files?.image;
+            //   * Image custom validator
             const message = imageValidator(image?.size, image?.mimetype);
-
             if (message !== null) {
-                return res
-                    .status(400)
-                    .json({ status: 400, error: message });
+                return res.status(400).json({
+                    errors: {
+                        image: message,
+                    },
+                });
             }
 
-            const imageExt = image?.name.split('.');
-            const imageName = generateRandomNumber() + '.' + imageExt[imageExt.length - 1];
-
-            const uploadPath = process.cwd() + '/public/images/' + imageName;
-
-            image.mv(uploadPath, function (error) {
-                if (error) {
-                    return res
-                        .status(500)
-                        .json({ status: 500, error: error });
-                }
-            });
-
+            //   * Image upload
+            const imageName = uploadImage(image);
             payload.image = imageName;
             payload.user_id = user.id;
-            console.log("Payload", payload);
+
             const news = await prisma.news.create({
-                data: payload
-            })
-            return res.json({ message: "News created successfully", payload: news });
+                data: payload,
+            });
+
+            //   * remove cache
+            // redisCache.del("/api/news", (err) => {
+            //     if (err) throw err;
+            // });
+
+            return res.json({
+                status: 200,
+                message: "News created successfully!",
+                news,
+            });
         } catch (error) {
             if (error instanceof errors.E_VALIDATION_ERROR) {
+                // console.log(error.messages);
                 return res.status(400).json({ errors: error.messages });
             } else {
                 return res.status(500).json({
                     status: 500,
-                    message: "Something went wrong.Please try again."
-
+                    message: "Something went wrong.Please try again.",
                 });
             }
-
         }
-
     }
 
     static async show(req, res) {
-        const { id } = req.params;
         try {
+            const { id } = req.params;
             const news = await prisma.news.findUnique({
                 where: {
-                    id: Number(id)
+                    id: Number(id),
                 },
                 include: {
                     user: {
                         select: {
                             id: true,
                             name: true,
-                            profile: true
-                        }
-                    }
-                }
+                            profile: true,
+                        },
+                    },
+                },
             });
-            if (!news) {
-                return res.status(404).json({ status: 404, message: "News not found" });
-            }
-            return res.status(200).json({ status: 200, news: NewsApiTransform.transform(news) });
+            const transFormNews = news ? NewsApiTransform.transform(news) : null;
+            return res.json({ status: 200, news: transFormNews });
         } catch (error) {
-            return res.status(500).json({ status: 500, message: "Something went wrong.Please try again" });
-
+            return res
+                .status(500)
+                .json({ message: "Somrthing went wrong.please try again." });
         }
-
     }
 
     static async update(req, res) {
@@ -190,7 +195,7 @@ class NewsController {
                 },
             });
             if (user.id !== news?.user_id) {
-                return res.status(401).json({ message: "UnAuthorized" });
+                return res.status(401).json({ message: "Un Authorized" });
             }
 
             // * Delete image from filesystem
@@ -210,5 +215,4 @@ class NewsController {
     }
 }
 
-
-export default NewsController
+export default NewsController;

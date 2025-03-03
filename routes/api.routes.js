@@ -4,19 +4,15 @@ import authMiddleware from '../middlewares/Authenticate.js';
 import ProfileController from '../controllers/ProfileController.js';
 import NewsController from '../controllers/NewsController.js';
 import authMiddleWare from '../middlewares/Authenticate.js';
+// import redisClient from '../config/redis.config.js';
 
 const router = Router();
 
 router.post('/auth/register', AuthController.register);
 router.post('/auth/login', AuthController.login);
-
-
-
 // profile
-router.get('/profile', authMiddleware, ProfileController.index);
+router.get('/profile', authMiddleware,/* redisClient.route(),*/ ProfileController.index);
 router.put('/profile/:id', authMiddleWare, ProfileController.update);
-
-
 // New routes
 router.get('/news', authMiddleware, NewsController.index);
 router.post('/news', authMiddleware, NewsController.store);
