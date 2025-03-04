@@ -10,6 +10,7 @@ const router = Router();
 
 router.post('/auth/register', AuthController.register);
 router.post('/auth/login', AuthController.login);
+router.get('/send-mail', AuthController.sendTestMail);
 // profile
 router.get('/profile', authMiddleware,/* redisClient.route(),*/ ProfileController.index);
 router.put('/profile/:id', authMiddleWare, ProfileController.update);

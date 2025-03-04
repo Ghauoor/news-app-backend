@@ -1,8 +1,9 @@
-import prisma from "../db/db.config.js";
+import prisma from "../DB/db.config.js";
 import vine, { errors } from "@vinejs/vine";
 import { registerSchema, loginSchema } from "../validations/authValidation.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { sendMail } from "../config/mailer.js";
 
 class AuthController {
     static async register(req, res) {
@@ -89,6 +90,28 @@ class AuthController {
             }
         }
 
+    }
+
+    static async sendTestMail(req, res) {
+        try {
+            const { email } = req.query;
+            const payload = {
+                toEmail: email,
+                subject: "Test Mail",
+                body: "<h1>This is a test mail</h1>",
+            }
+            await sendMail(payload.toEmail, payload.subject, payload.body);
+            return res.status(200).json({
+                status: 200,
+                message: "Mail sent successfully",
+            })
+        } catch (error) {
+            console.log("The error is", error);
+            return res.status(500).json({
+                status: 500,
+                message: "Something went wrong.Please try again."
+            });
+        }
     }
 }
 

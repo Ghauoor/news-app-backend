@@ -22,7 +22,13 @@ app.get("/", (req, res) => {
 
 import ApiRoutes from "./routes/api.routes.js";
 import { limiter } from "./config/rateLimiter.js";
+import logger from "./config/logger.js";
 app.use("/api", ApiRoutes);
+
+app.use((req, next) => {
+    logger.info(`${req.method} ${req.url}`);
+    next();
+});
 
 app.listen(PORT, () => {
     console.log(`Server is running http://localhost:${PORT}`);
