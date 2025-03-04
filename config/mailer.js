@@ -1,10 +1,6 @@
 import nodemailer from 'nodemailer';
-import dotenv from 'dotenv';
 
-// Load environment variables from .env file
-dotenv.config();
 
-// Create a transporter using Mailtrap's SMTP settings
 const transporter = nodemailer.createTransport({
     host: process.env.MAILTRAP_HOST,
     port: process.env.MAILTRAP_PORT,
