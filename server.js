@@ -25,6 +25,8 @@ import { limiter } from "./config/rateLimiter.js";
 import logger from "./config/logger.js";
 app.use("/api", ApiRoutes);
 
+import './jobs'
+
 app.use((req, next) => {
     logger.info(`${req.method} ${req.url}`);
     next();

@@ -4,6 +4,7 @@ import { registerSchema, loginSchema } from "../validations/authValidation.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { sendMail } from "../config/mailer.js";
+import { emailQueue, emailQueueName } from "../jobs/sendEmailJob.js";
 
 class AuthController {
     static async register(req, res) {
@@ -100,7 +101,9 @@ class AuthController {
                 subject: "Test Mail",
                 body: "<h1>This is a test mail</h1>",
             }
-            await sendMail(payload.toEmail, payload.subject, payload.body);
+
+            await emailQueue.add(emailQueueName, payload)
+            // await sendMail(payload.toEmail, payload.subject, payload.body);
             return res.status(200).json({
                 status: 200,
                 message: "Mail sent successfully",
